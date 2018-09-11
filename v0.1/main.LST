@@ -1,0 +1,234 @@
+C51 COMPILER V9.00   MAIN                                                                  02/20/2016 16:55:26 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Program Files (x86)\Keil\C51\BIN\C51.EXE main.c COMPACT BROWSE INCDIR(.\stc_lib;..\Êý×Ö¿ÚÇ»²âÁ¦¼
+                    -Æv0.2) DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          /*
+   2          *
+   3          *ÎÄ¼þÃû:main.c
+   4          *ÕªÒª:±¾ÎÄ¼þ¶¨ÒåÁËµ¥Æ¬»úµÄ²Ù×÷¼Ü¹¹.
+   5          *
+   6          *×÷Õß:Ð¤Ñô, <email: planck_constant@foxmail.com>
+   7          *°æ±¾:0.1
+   8          *Íê³ÉÈÕÆÚ:2015.12.
+   9          *
+  10          */
+  11          
+  12          
+  13          
+  14          #include"config.h"
+  15          #include"STC15Fxxxx.h"
+  16          
+  17          //ÍâÉè
+  18          #include  "key.h"       //°´¼üÄ£¿é
+  19          #include  "lcd1602.h"   
+  20          #include  "EEPROM.h"   
+  21          #include  "ADC.h"     
+  22          #include  "buzzer.h" 
+  23          #include  "timer.h" 
+  24          #include  "delay.h"
+  25          #include  "ntostr.h"
+  26          
+  27          #define uint8     unsigned char
+  28          #define uint16    unsigned int
+  29          
+  30          //²Ù×÷Ä£Ê½¶¨Òå
+  31          #define MEASURE_MODE   0  //²âÁ¿Ä£Ê½
+  32          #define SET_MODE       1  //ÉèÖÃÄ£Ê½(ÉèÖÃ±¨¾¯Öµ)
+  33          
+  34          
+  35          //¶¨ÒåÄ¬ÈÏµÄ±¨¾¯ÖµºÍ´ýÉèÖÃµÄ±¨¾¯ÖµºÍ´¢´æµØÖ· 
+  36          #define MAX_FORCE  10          //³õÊ¼±¨¾¯ÖµÎª 10g
+  37          #define ADDR_MAX_FORCE  0x0010  
+  38          
+  39          //´ú±í·äÃùÆ÷µÄÁ½ÖÖ²»Í¬ÉùÒôµÄÖµ. continusÁ¬ÐøµÄÉùÒô£¬discontinus¼ä¶ÏµÄÉùÒô 
+  40          #define CONTINU 0
+  41          #define DISCONTINU 1
+  42          
+  43          /* ADÅäÖÃ */
+  44          ADC_InitTypeDef ADC_Struct={ ADC_P10,           //ÅäÖÃA/D
+  45                     ADC_540T,ENABLE, ADC_RES_H2L8,PolityHigh, ENABLE };
+  46          
+  47          /* ¶¨Ê±Æ÷ÅäÖÃ 
+  48             16-bit×Ô¶¯ÖØÔØ, ¶¨Ê±Æ÷i³õÖµ=0,
+  49             Î´ÉèÖÃÖÐ¶Ï, ³õÊ¼Ê±Î´ÔËÐÐ        */
+  50          TIM_InitTypeDef Timer0_Struct={
+  51                                   TIM_16BitAutoReload,
+  52                                                   PolityHigh,
+  53                                                   DISABLE,
+  54                                                   TIM_CLOCK_12T,
+C51 COMPILER V9.00   MAIN                                                                  02/20/2016 16:55:26 PAGE 2   
+
+  55                                                   DISABLE,
+  56                                                   63488,     //¶¨Ê±Æ÷³õÊ¼Öµ=0
+  57                                                   DISABLE };
+  58          
+  59          uint8 flag = MEASURE_MODE;  //¾ö¶¨MCU¹¤×÷Ä£Ê½µÄ±êÖ¾
+  60          uint16 NumOfVoltConvert = 0; // ÊäÈëµçÑ¹¾­A/D×ª»»ºóµÄÖµ
+  61          
+  62          #define EnableTimer0IRQ()   (ET0 = 1)
+  63          #define DisableTimer0IRQ()  (ET0 = 0)
+  64          
+  65          int main(void)
+  66          {
+  67   1        uint16 force_g; // µ¥Î»Îª g µÄÁ¦
+  68   1        uint16 maxForce, deltaForce;
+  69   1        uint8 key;
+  70   1        uint8 string[10]; //´¢´æ×Ö·û´®
+  71   1        while (1)
+  72   1        {
+  73   2          //³õÊ¼»¯A/D, ¶¨Ê±Æ÷0
+  74   2          InitLCD();
+  75   2          ADC_Inilize(&ADC_Struct);
+  76   2          Timer_Inilize(Timer0, &Timer0_Struct);
+  77   2      
+  78   2           switch (flag)
+  79   2           {
+  80   3              // ²âÁ¿Ä£Ê½
+  81   3              case MEASURE_MODE:     
+  82   3                      /*
+  83   3                       * ×öÒ»Ð©³õÊ¼»¯:
+  84   3                       * ³õÊ¼»¯lcd£¬¶ÁÈëeerpom´¢´æµÄÖµ,Æô¶¯A/D
+  85   3                       */
+  86   3              InitLCD();
+  87   3              WriteLCDStr(0x0a, "Normal");
+  88   3              WriteLCDStr(0x43, "00  g");
+  89   3              EEPROM_read_n(ADDR_MAX_FORCE, string, 2);  
+  90   3                      maxForce = string[0] + 256 * string[1];
+  91   3                delay_ms(10);  //ÑÓ³Ù 10 ms, µÈ´ý²âÁ¿
+  92   3                while (1) 
+  93   3                {
+  94   4                  /* ½øÈë²âÁ¿×´Ì¬£¬ Ö±µ½°´ÏÂMODE¼üÍË³ö */
+  95   4                   force_g = (100UL * NumOfVoltConvert / 266) - 10UL;
+  96   4                   WriteLCDStr(0x43, N16ToStr(force_g, string) );
+  97   4                   
+  98   4                   if (force_g >= maxForce)
+  99   4                   { 
+ 100   5                       if (force_g >= (maxForce+2))  //¼ä¶ÏµÄÉùÒôÌáÐÑÓÃ»§Á¦ºÜ½Ó½üÔ¤ÉèµÄÖµÁË£¬
+ 101   5                       {                             //Á¬ÐøµÄÉùÒôÌáÐÑÓÃ»§Á¦ÓÐµã´ó£¬ÒªÐ¡Ò»µã
+ 102   6                           
+ 103   6                           DisableTimer0IRQ(); //¹Ø¶¨Ê±Æ÷0ÖÐ¶Ï
+ 104   6                           OpenBuzzer(CONTINU); //Á¬ÐøÉùÒô
+ 105   6                       }
+ 106   5                       else
+ 107   5                       {
+ 108   6                           EnableTimer0IRQ();
+ 109   6                       }
+ 110   5                   }
+ 111   4                   else
+ 112   4                   {
+ 113   5                      DisableTimer0IRQ();
+ 114   5                      CloseBuzzer();
+ 115   5                   }
+ 116   4      
+C51 COMPILER V9.00   MAIN                                                                  02/20/2016 16:55:26 PAGE 3   
+
+ 117   4                   //°´¼üÉ¨Ãè
+ 118   4                   if ( (key=ReadKey()) == KEY_MODE )
+ 119   4                   {
+ 120   5                      ADC_PowerControl(DISABLE);
+ 121   5                      flag++;
+ 122   5                      break;
+ 123   5                   }              
+ 124   4                }           //²âÁ¿Ä£Ê½½áÊø
+ 125   3                                   
+ 126   3              //ÉèÖÃÄ£Ê½                           
+ 127   3              case SET_MODE:
+ 128   3                      /*
+ 129   3                       * ×öÒ»Ð©ÉèÖÃÄ£Ê½ÏÂµÄ³õÊ¼»¯:
+ 130   3                       * ³õÊ¼»¯lcd, ¶ÁÈ¡eepromµÄmaxForceÖµ£¬²¢ÏÔÊ¾Ëü
+ 131   3                       * È»ºóµÈ´ý°´¼ü
+ 132   3                       */
+ 133   3              InitLCD();
+ 134   3              WriteLCDStr(0x0b, "Set");
+ 135   3              EEPROM_read_n(ADDR_MAX_FORCE, string, 1);
+ 136   3                      maxForce = 256 * string[1] + string[0];
+ 137   3              WriteLCDStr(0x45, "     g");
+ 138   3              WriteLCDStr(0x45, N16ToStr(maxForce, string)); 
+ 139   3                              
+ 140   3                while (1)
+ 141   3                {
+ 142   4                  if ( (key=ReadKey()) == KEY_MODE )
+ 143   4                  {
+ 144   5                     flag++;
+ 145   5                     EEPROM_SectorErase(ADDR_MAX_FORCE);
+ 146   5                         string[0] = maxForce % 256;
+ 147   5                         string[1] = maxForce / 256;
+ 148   5                     EEPROM_write_n(ADDR_MAX_FORCE, string, 2);
+ 149   5                     break;
+ 150   5                  }
+ 151   4      
+ 152   4                  if ( key == KEY_10g )
+ 153   4                  {
+ 154   5                     if ( deltaForce == 1)
+ 155   5                     {
+ 156   6                        deltaForce = 10;
+ 157   6                     }
+ 158   5                  }
+ 159   4      
+ 160   4                  if ( key == KEY_ADD )
+ 161   4                  {
+ 162   5                     maxForce += deltaForce;
+ 163   5                     WriteLCDStr(0x45, N8ToStr(maxForce, string) );
+ 164   5                  }
+ 165   4      
+ 166   4                  if ( key == KEY_DEC )
+ 167   4                  { 
+ 168   5                     if ( (maxForce -= deltaForce) <=0)    
+ 169   5                     {
+ 170   6                        maxForce = 0;
+ 171   6                     }
+ 172   5                     WriteLCDStr(0x45, N8ToStr(maxForce, string) );
+ 173   5                  }
+ 174   4               }
+ 175   3      
+ 176   3            default: break;
+ 177   3           } //switchÔÚ´Ë½áÊø
+ 178   2      
+C51 COMPILER V9.00   MAIN                                                                  02/20/2016 16:55:26 PAGE 4   
+
+ 179   2           if (flag>=2)
+ 180   2           {
+ 181   3              flag=0;
+ 182   3           }
+ 183   2      
+ 184   2         } //Íâ²ãwhileÔÚ´Ë½áÊø
+ 185   1      
+ 186   1      }
+ 187          
+ 188          void ADC_InterruptService(void) interrupt 5
+ 189          {
+ 190   1         /* A/D 10-bitÄ£Ê½,ADC_RESL µÍ8Î»£¬
+ 191   1            ADC_RES ¸ß2Î»                     */
+ 192   1         NumOfVoltConvert = (ADC_RES * 256) + ADC_RESL; 
+ 193   1         ADC_CONTR &= (~ADC_FLAG);
+ 194   1         ADC_PowerControl(ENABLE);
+ 195   1      }
+ 196          
+ 197          
+ 198          void Timer0_InterruptService(void) interrupt 1 
+ 199          {
+ 200   1        OpenBuzzer(DISCONTINU);
+ 201   1        EnableTimer0IRQ();
+ 202   1      }   
+ 203          
+ 204          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    653    ----
+   CONSTANT SIZE    =     24    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =     17      17
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

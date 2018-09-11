@@ -1,0 +1,62 @@
+C51 COMPILER V9.00   BUZZER                                                                02/25/2016 19:50:15 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE BUZZER
+OBJECT MODULE PLACED IN buzzer.OBJ
+COMPILER INVOKED BY: D:\Program Files (x86)\Keil\C51\BIN\C51.EXE buzzer.c BROWSE INCDIR(..\stc_lib;..\b) DEBUG OBJECTEXT
+                    -END
+
+line level    source
+
+   1          #include "config.h"
+   2          #include "buzzer.h"
+   3          
+   4          //蜂鸣器引脚
+   5          sbit buzzer=P2^0;
+   6          
+   7          /*
+   8          *功能：0, 表示使蜂鸣器发出连续的声音
+   9          *      1, 表示使蜂鸣器发出间断的声音(和定时器配合)
+  10          *参数: 0(CONTINUE), 1(DISCONTINUE) 
+  11          *返回值:无
+  12          */
+  13          
+  14          void  OpenBuzzer(uint8 status) 
+  15          {
+  16   1          if ( 1 == status ) // 1=间断声音选项
+  17   1          {
+  18   2              buzzer =  ~buzzer;
+  19   2          }
+  20   1          else              // 0=连续声音选项
+  21   1          {
+  22   2              buzzer = 1;
+  23   2          }
+  24   1      }
+  25                 
+  26          
+  27          
+  28          
+  29          /*
+  30          *功能:关闭蜂鸣器
+  31          *参数:无
+  32          *返回值:无
+  33          */
+  34          void CloseBuzzer()
+  35          { 
+  36   1          buzzer = 0;   
+  37   1      }
+  38          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     12    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,11 @@
+"STARTUP.obj",
+"buzzer.obj",
+"key.obj",
+"lcd1602.obj",
+"main.obj",
+"ntostr.obj",
+".\ADC.obj",
+".\delay.obj",
+".\EEPROM.obj",
+".\timer.obj" 
+TO "口腔数字测力计v0.2b" 

@@ -1,0 +1,157 @@
+C51 COMPILER V9.00   LCD1602                                                               02/20/2016 16:55:25 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LCD1602
+OBJECT MODULE PLACED IN lcd1602.OBJ
+COMPILER INVOKED BY: D:\Program Files (x86)\Keil\C51\BIN\C51.EXE lcd1602.c COMPACT BROWSE INCDIR(.\stc_lib;..\数字口腔测
+                    -力计v0.2) DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include "lcd1602.h"
+   2          #include "delay.h"
+   3          #include "config.h"
+   4          
+   5          sbit LCD_RS = P2^5;
+   6          sbit LCD_RW = P2^6;
+   7          sbit LCD_EN = P2^7;
+   8          
+   9          #define LCD_DATA_PORT P0
+  10          
+  11          
+  12          /*
+  13          *
+  14          * 功能: 检查lcd的忙状态
+  15          * 输入: 无
+  16          * 输出: bit 0或1
+  17          *
+  18          */
+  19          bit IsLCDBusy()
+  20          {                          
+  21   1          bit result;
+  22   1          LCD_RS = 0;
+  23   1          LCD_RW = 1;
+  24   1          LCD_EN = 1;
+  25   1          delay_us(4);     //延迟 4 us
+  26   1          result = (bit)(LCD_DATA_PORT & 0x80);
+  27   1          LCD_EN = 0;
+  28   1          return(result); 
+  29   1      }
+  30           
+  31          
+  32          /*
+  33          *
+  34          * 功能: 向LCD 1602写入单个命令
+  35          * 输入: 命令 cmd
+  36          * 返回: 无
+  37          *
+  38          */
+  39          void WriteLCDCmd(uint8 cmd)
+  40          {                          
+  41   1          while(IsLCDBusy());
+  42   1          LCD_RS = 0;
+  43   1          LCD_RW = 0;
+  44   1          LCD_DATA_PORT = cmd;
+  45   1                    
+  46   1          LCD_EN = 0;   
+  47   1          delay_us(4);
+  48   1          LCD_EN = 1; 
+  49   1          delay_us(4);  
+  50   1          LCD_EN=0;
+  51   1          delay_us(4);
+  52   1      }  
+  53          
+  54          
+C51 COMPILER V9.00   LCD1602                                                               02/20/2016 16:55:25 PAGE 2   
+
+  55          /*
+  56          *
+  57          * 功能: 向LCD 1602写 1 字节数据
+  58          * 输入: 一字节数据 dat
+  59          * 返回: 无
+  60          *
+  61          */
+  62          void WriteLCDData(uint8 dat)
+  63          {                          
+  64   1          while(IsLCDBusy());
+  65   1          LCD_RS = 1;
+  66   1          LCD_RW = 0;
+  67   1          delay_us(4);
+  68   1          LCD_DATA_PORT = dat;
+  69   1          LCD_EN = 0;
+  70   1          delay_us(4); 
+  71   1          LCD_EN = 1; 
+  72   1          delay_us(4);
+  73   1          LCD_EN=0;
+  74   1          delay_us(4);
+  75   1      }
+  76          
+  77          
+  78          /*
+  79          *
+  80          * 功能: 设定LCD 1602写入字符串首字母在屏幕的位置
+  81          * 输入: 位置从 0x80开始
+  82          * 返回: 无
+  83          *
+  84          */
+  85          void SetLCDPos(uint8 pos)
+  86          {                          
+  87   1        WriteLCDCmd(pos | 0x80); 
+  88   1      }
+  89          
+  90          
+  91          /*
+  92          *
+  93          * 功能: 初始化LCD 1602
+  94          * 输入: 无
+  95          * 输出: 无
+  96          *
+  97          */
+  98          void InitLCD()
+  99          { 
+ 100   1      
+ 101   1          WriteLCDCmd(0x38);
+ 102   1          delay_ms(1);       
+ 103   1          WriteLCDCmd(0x08);
+ 104   1          delay_ms(1);       
+ 105   1          WriteLCDCmd(0x01);
+ 106   1          delay_ms(1);      
+ 107   1          WriteLCDCmd(0x06);
+ 108   1          delay_ms(1);       
+ 109   1          WriteLCDCmd(0x0c);
+ 110   1          delay_ms(1);      
+ 111   1      }
+ 112          
+ 113          
+ 114          /*
+ 115          *
+ 116          * 功能: 向LCD写入字符串
+C51 COMPILER V9.00   LCD1602                                                               02/20/2016 16:55:25 PAGE 3   
+
+ 117          * 输入: 地址pos, 字符串首地址 str
+ 118          * 返回: 字符串首地址 str
+ 119          *
+ 120          */
+ 121          void WriteLCDStr(uint8 pos, uint8 *str)
+ 122          {
+ 123   1          uint8 i=0;
+ 124   1          SetLCDPos(pos);
+ 125   1      
+ 126   1          while (str[i] != 0)
+ 127   1              WriteLCDData(str[i++]);
+ 128   1      }
+ 129          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    229    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----       6
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

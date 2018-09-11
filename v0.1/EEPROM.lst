@@ -1,0 +1,137 @@
+C51 COMPILER V9.00   EEPROM                                                                02/20/2016 16:55:27 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE EEPROM
+OBJECT MODULE PLACED IN EEPROM.obj
+COMPILER INVOKED BY: D:\Program Files (x86)\Keil\C51\BIN\C51.EXE stc_lib\EEPROM.c COMPACT BROWSE INCDIR(.\stc_lib;..\Êý×
+                    -Ö¿ÚÇ»²âÁ¦¼Æv0.2) DEBUG OBJECTEXTEND PRINT(.\EEPROM.lst) OBJECT(EEPROM.obj)
+
+line level    source
+
+   1          
+   2          //      ±¾³ÌÐòÊÇSTCÏµÁÐµÄÄÚÖÃEEPROM¶ÁÐ´³ÌÐò¡£
+   3          
+   4          #include "config.h"
+   5          #include "eeprom.h"
+   6          
+   7          
+   8          //========================================================================
+   9          // º¯Êý: void   ISP_Disable(void)
+  10          // ÃèÊö: ½ûÖ¹·ÃÎÊISP/IAP.
+  11          // ²ÎÊý: non.
+  12          // ·µ»Ø: non.
+  13          // °æ±¾: V1.0, 2012-10-22
+  14          //========================================================================
+  15          void    DisableEEPROM(void)
+  16          {
+  17   1              ISP_CONTR = 0;                  //½ûÖ¹ISP/IAP²Ù×÷
+  18   1              ISP_CMD   = 0;                  //È¥³ýISP/IAPÃüÁî
+  19   1              ISP_TRIG  = 0;                  //·ÀÖ¹ISP/IAPÃüÁîÎó´¥·¢
+  20   1              ISP_ADDRH = 0xff;               //Çå0µØÖ·¸ß×Ö½Ú
+  21   1              ISP_ADDRL = 0xff;               //Çå0µØÖ·µÍ×Ö½Ú£¬Ö¸Ïò·ÇEEPROMÇø£¬·ÀÖ¹Îó²Ù×÷
+  22   1      }
+  23          
+  24          //========================================================================
+  25          // º¯Êý: void EEPROM_read_n(u16 EE_address,u8 *DataAddress,u16 number)
+  26          // ÃèÊö: ´ÓÖ¸¶¨EEPROMÊ×µØÖ·¶Á³ön¸ö×Ö½Ú·ÅÖ¸¶¨µÄ»º³å.
+  27          // ²ÎÊý: EE_address:  ¶Á³öEEPROMµÄÊ×µØÖ·.
+  28          //       DataAddress: ¶Á³öÊý¾Ý·Å»º³åµÄÊ×µØÖ·.
+  29          //       number:      ¶Á³öµÄ×Ö½Ú³¤¶È.
+  30          // ·µ»Ø: non.
+  31          // °æ±¾: V1.0, 2012-10-22
+  32          //========================================================================
+  33          
+  34          void EEPROM_read_n(u16 EE_address,u8 *DataAddress,u16 number)
+  35          {
+  36   1              EA = 0;         //½ûÖ¹ÖÐ¶Ï
+  37   1              ISP_CONTR = (ISP_EN + ISP_WAIT_FREQUENCY);      //ÉèÖÃµÈ´ýÊ±¼ä£¬ÔÊÐíISP/IAP²Ù×÷£¬ËÍÒ»´Î¾Í¹»
+  38   1              ISP_READ();                                                                     //ËÍ×Ö½Ú¶ÁÃüÁî£¬ÃüÁî²»Ðè¸Ä±äÊ±£¬²»ÐèÖØÐÂËÍÃüÁî
+  39   1              do
+  40   1              {
+  41   2                      ISP_ADDRH = EE_address / 256;           //ËÍµØÖ·¸ß×Ö½Ú£¨µØÖ·ÐèÒª¸Ä±äÊ±²ÅÐèÖØÐÂËÍµØÖ·£©
+  42   2                      ISP_ADDRL = EE_address % 256;           //ËÍµØÖ·µÍ×Ö½Ú
+  43   2                      ISP_TRIG();                                                     //ÏÈËÍ5AH£¬ÔÙËÍA5Hµ½ISP/IAP´¥·¢¼Ä´æÆ÷£¬Ã¿´Î¶¼ÐèÒªÈç´Ë
+  44   2                                                                                              //ËÍÍêA5Hºó£¬ISP/IAPÃüÁîÁ¢¼´±»´¥·¢Æô¶¯
+  45   2                                                                                              //CPUµÈ´ýIAPÍê³Éºó£¬²Å»á¼ÌÐøÖ´ÐÐ³ÌÐò¡£
+  46   2                      _nop_();
+  47   2                      *DataAddress = ISP_DATA;                        //¶Á³öµÄÊý¾ÝËÍÍù
+  48   2                      EE_address++;
+  49   2                      DataAddress++;
+  50   2              }while(--number);
+  51   1      
+  52   1              DisableEEPROM();
+  53   1              EA = 1;         //ÖØÐÂÔÊÐíÖÐ¶Ï
+  54   1      }
+C51 COMPILER V9.00   EEPROM                                                                02/20/2016 16:55:27 PAGE 2   
+
+  55          
+  56          
+  57          /******************** ÉÈÇø²Á³ýº¯Êý *****************/
+  58          //========================================================================
+  59          // º¯Êý: void EEPROM_SectorErase(u16 EE_address)
+  60          // ÃèÊö: °ÑÖ¸¶¨µØÖ·µÄEEPROMÉÈÇø²Á³ý.
+  61          // ²ÎÊý: EE_address:  Òª²Á³ýµÄÉÈÇøEEPROMµÄµØÖ·.
+  62          // ·µ»Ø: non.
+  63          // °æ±¾: V1.0, 2013-5-10
+  64          //========================================================================
+  65          void EEPROM_SectorErase(u16 EE_address)
+  66          {
+  67   1              EA = 0;         //½ûÖ¹ÖÐ¶Ï
+  68   1                                                                                              //Ö»ÓÐÉÈÇø²Á³ý£¬Ã»ÓÐ×Ö½Ú²Á³ý£¬512×Ö½Ú/ÉÈÇø¡£
+  69   1                                                                                              //ÉÈÇøÖÐÈÎÒâÒ»¸ö×Ö½ÚµØÖ·¶¼ÊÇÉÈÇøµØÖ·¡£
+  70   1              ISP_ADDRH = EE_address / 256;                   //ËÍÉÈÇøµØÖ·¸ß×Ö½Ú£¨µØÖ·ÐèÒª¸Ä±äÊ±²ÅÐèÖØÐÂËÍµØÖ·£©
+  71   1              ISP_ADDRL = EE_address % 256;                   //ËÍÉÈÇøµØÖ·µÍ×Ö½Ú
+  72   1              ISP_CONTR = (ISP_EN + ISP_WAIT_FREQUENCY);      //ÉèÖÃµÈ´ýÊ±¼ä£¬ÔÊÐíISP/IAP²Ù×÷£¬ËÍÒ»´Î¾Í¹»
+  73   1              ISP_ERASE();                                                    //ËÍÉÈÇø²Á³ýÃüÁî£¬ÃüÁî²»Ðè¸Ä±äÊ±£¬²»ÐèÖØÐÂËÍÃüÁî
+  74   1              ISP_TRIG();
+  75   1              _nop_();
+  76   1              DisableEEPROM();
+  77   1              EA = 1;         //ÖØÐÂÔÊÐíÖÐ¶Ï
+  78   1      }
+  79          
+  80          //========================================================================
+  81          // º¯Êý: void EEPROM_write_n(u16 EE_address,u8 *DataAddress,u16 number)
+  82          // ÃèÊö: °Ñ»º³åµÄn¸ö×Ö½ÚÐ´ÈëÖ¸¶¨Ê×µØÖ·µÄEEPROM.
+  83          // ²ÎÊý: EE_address:  Ð´ÈëEEPROMµÄÊ×µØÖ·.
+  84          //       DataAddress: Ð´ÈëÔ´Êý¾ÝµÄ»º³åµÄÊ×µØÖ·.
+  85          //       number:      Ð´ÈëµÄ×Ö½Ú³¤¶È.
+  86          // ·µ»Ø: non.
+  87          // °æ±¾: V1.0, 2012-10-22
+  88          //========================================================================
+  89          void EEPROM_write_n(u16 EE_address,u8 *DataAddress,u16 number)
+  90          {
+  91   1              EA = 0;         //½ûÖ¹ÖÐ¶Ï
+  92   1      
+  93   1              ISP_CONTR = (ISP_EN + ISP_WAIT_FREQUENCY);      //ÉèÖÃµÈ´ýÊ±¼ä£¬ÔÊÐíISP/IAP²Ù×÷£¬ËÍÒ»´Î¾Í¹»
+  94   1              ISP_WRITE();                                                    //ËÍ×Ö½ÚÐ´ÃüÁî£¬ÃüÁî²»Ðè¸Ä±äÊ±£¬²»ÐèÖØÐÂËÍÃüÁî
+  95   1              do
+  96   1              {
+  97   2                      ISP_ADDRH = EE_address / 256;           //ËÍµØÖ·¸ß×Ö½Ú£¨µØÖ·ÐèÒª¸Ä±äÊ±²ÅÐèÖØÐÂËÍµØÖ·£©
+  98   2                      ISP_ADDRL = EE_address % 256;           //ËÍµØÖ·µÍ×Ö½Ú
+  99   2                      ISP_DATA  = *DataAddress;                       //ËÍÊý¾Ýµ½ISP_DATA£¬Ö»ÓÐÊý¾Ý¸Ä±äÊ±²ÅÐèÖØÐÂËÍ
+ 100   2                      ISP_TRIG();
+ 101   2                      _nop_();
+ 102   2                      EE_address++;
+ 103   2                      DataAddress++;
+ 104   2              }while(--number);
+ 105   1      
+ 106   1              DisableEEPROM();
+ 107   1              EA = 1;         //ÖØÐÂÔÊÐíÖÐ¶Ï
+ 108   1      }
+ 109          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    176    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----      14
+C51 COMPILER V9.00   EEPROM                                                                02/20/2016 16:55:27 PAGE 3   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

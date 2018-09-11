@@ -1,0 +1,71 @@
+C51 COMPILER V9.00   INIT                                                                  02/20/2016 16:15:20 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE INIT
+OBJECT MODULE PLACED IN init.OBJ
+COMPILER INVOKED BY: D:\Program Files (x86)\Keil\C51\BIN\C51.EXE init.c BROWSE INCDIR(.\stc_lib;..\数字口腔测力计v0.2) D
+                    -EBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include "ADC.h"
+   2          #include "EEPROM.h"
+   3          #include "timer.h"
+   4          #include "ntostr.h"
+   5          #include "lcd1602.h"
+   6          
+   7          //定义默认的报警值和待设置的报警值和储存地址 
+   8          #define MAX_FORCE  10          //初始报警值为 10g
+   9          #define ADDR_MAX_FORCE  0x0010  
+  10          
+  11          #define uint16  unsigned int
+  12          
+  13          void Init(ADC_InitTypeDef *ADC_Struct,  
+  14                    unsigned char Timerx, 
+  15                            TIM_InitTypeDef *Timerx_Struct)
+  16          {
+  17   1          InitLCD();
+  18   1          ADC_Inilize(&ADC_Struct);
+*** WARNING C182 IN LINE 18 OF INIT.C: pointer to different objects
+  19   1          Timer_Inilize(Timerx, &Timerx_Struct);
+*** WARNING C182 IN LINE 19 OF INIT.C: pointer to different objects
+  20   1      }
+  21          
+  22          void InitMeasureMode(uint16 maxForce)
+  23          {
+  24   1          InitLCD();
+  25   1          WriteLCDStr(0x0a, "Normal");
+  26   1          WriteLCDStr(0x43, "00  g");
+  27   1          EEPROM_read_n(ADDR_MAX_FORCE, &maxForce, 1);
+*** WARNING C182 IN LINE 27 OF INIT.C: pointer to different objects
+  28   1      }    
+  29          
+  30          void InitSetMode(void)
+  31          {
+  32   1          uint16 maxForceTemp;
+  33   1          InitLCD();
+  34   1          WriteLCDStr(0x0b, "Set");
+  35   1          EEPROM_read_n(ADDR_MAX_FORCE, &maxForceTemp, 1);
+*** WARNING C182 IN LINE 35 OF INIT.C: pointer to different objects
+  36   1          WriteLCDStr(0x45, "     g");
+  37   1          WriteLCDStr(0x45, N16ToStr(maxForceTemp));
+*** WARNING C209 IN LINE 37 OF INIT.C: '_N16ToStr': too few actual parameters
+  38   1      }
+  39          
+  40          void InitSetMode(void)
+  41          {
+  42   1          uint16 maxForceTemp;
+  43   1          InitLCD();
+  44   1          WritLCDStr(0x0b, "SET");
+*** WARNING C206 IN LINE 44 OF INIT.C: 'WritLCDStr': missing function-prototype
+*** ERROR C267 IN LINE 44 OF INIT.C: 'WritLCDStr': requires ANSI-style prototype
+  45   1          EEPROM_write_n(ADDR_FORCE_MAX, &maxForceTemp, 1);
+*** ERROR C202 IN LINE 45 OF INIT.C: 'ADDR_FORCE_MAX': undefined identifier
+  46   1          WriteLCDStr(0x45, N16ToStr(maxForceTemp));
+C51 COMPILER V9.00   INIT                                                                  02/20/2016 16:15:20 PAGE 2   
+
+  47   1      }
+  48          
+  49          
+
+C51 COMPILATION COMPLETE.  6 WARNING(S),  2 ERROR(S)

@@ -1,0 +1,234 @@
+C51 COMPILER V9.00   MAIN                                                                  02/25/2016 19:50:16 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Program Files (x86)\Keil\C51\BIN\C51.EXE main.c BROWSE INCDIR(..\stc_lib;..\b) DEBUG OBJECTEXTEN
+                    -D
+
+line level    source
+
+   1          /*
+   2          *
+   3          *文件名:main.c
+   4          *摘要:本文件定义了单片机的操作架构.
+   5          *
+   6          *作者:肖阳, <email: planck_constant@foxmail.com>
+   7          *版本:0.1
+   8          *完成日期:2015.12.
+   9          *
+  10          */
+  11          
+  12          
+  13          
+  14          #include"config.h"
+  15          #include"STC15Fxxxx.h"
+  16          
+  17          //外设
+  18          #include  "key.h"       //按键模块
+  19          #include  "lcd1602.h"   
+  20          #include  "EEPROM.h"   
+  21          #include  "ADC.h"     
+  22          #include  "buzzer.h" 
+  23          #include  "timer.h" 
+  24          #include  "delay.h"
+  25          #include  "ntostr.h"
+  26          
+  27          #define uint8     unsigned char
+  28          #define uint16    unsigned int
+  29          
+  30          //操作模式定义
+  31          #define MEASURE_MODE   0  //测量模式
+  32          #define SET_MODE       1  //设置模式(设置报警值)
+  33          
+  34          
+  35          //定义默认的报警值和待设置的报警值和储存地址 
+  36          #define MAX_FORCE  10          //初始报警值为 10g
+  37          #define ADDR_MAX_FORCE  0x0010  
+  38          
+  39          //代表蜂鸣器的两种不同声音的值. continus连续的声音，discontinus间断的声音 
+  40          #define CONTINU 0
+  41          #define DISCONTINU 1
+  42          
+  43          /* AD配置 */
+  44          ADC_InitTypeDef ADC_Struct={ ADC_P10,     //配置A/D
+  45                     ADC_540T,ENABLE, ADC_RES_H2L8,PolityHigh, ENABLE };
+  46          
+  47          /* 定时器配置 
+  48             16-bit自动重载, 定时器i初值=0,
+  49             未设置中断, 初始时未运行        */
+  50          TIM_InitTypeDef Timer0_Struct={
+  51                               TIM_16BitAutoReload,
+  52                PolityHigh,
+  53                DISABLE,
+  54                TIM_CLOCK_12T,
+C51 COMPILER V9.00   MAIN                                                                  02/25/2016 19:50:16 PAGE 2   
+
+  55                DISABLE,
+  56                63488,     //定时器初始值=0
+  57                DISABLE };
+  58          
+  59          uint8 flag = MEASURE_MODE;  //决定MCU工作模式的标志
+  60          uint16 NumOfVoltConvert = 0; // 输入电压经A/D转换后的值
+  61          
+  62          #define EnableTimer0IRQ()   (ET0 = 1)
+  63          #define DisableTimer0IRQ()  (ET0 = 0)
+  64          
+  65          int main(void)
+  66          {
+  67   1        uint16 force_g; // 单位为 g 的力
+  68   1        uint16 maxForce, deltaForce;
+  69   1        uint8 key;
+  70   1        uint8 string[10]; //储存字符串
+  71   1        while (1)
+  72   1        {
+  73   2          //初始化A/D, 定时器0
+  74   2          InitLCD();
+  75   2          ADC_Inilize(&ADC_Struct);
+  76   2          Timer_Inilize(Timer0, &Timer0_Struct);
+  77   2      
+  78   2           switch (flag)
+  79   2           {
+  80   3              // 测量模式
+  81   3       case MEASURE_MODE:     
+  82   3        /*
+  83   3         * 做一些初始化:
+  84   3         * 初始化lcd，读入eerpom储存的值,启动A/D
+  85   3         */
+  86   3              InitLCD();
+  87   3              WriteLCDStr(0x0a, "Normal");
+  88   3              WriteLCDStr(0x43, "00  g");
+  89   3              EEPROM_read_n(ADDR_MAX_FORCE, string, 2);  
+  90   3        maxForce = string[0] + 256 * string[1];
+  91   3                delay_ms(10);  //延迟 10 ms, 等待测量
+  92   3                while (1) 
+  93   3                {
+  94   4                  /* 进入测量状态， 直到按下MODE键退出 */
+  95   4                   force_g = (100UL * NumOfVoltConvert / 266) - 10UL;
+  96   4                   WriteLCDStr(0x43, N16ToStr(force_g, string) );
+  97   4            
+  98   4            if (force_g >= maxForce)
+  99   4                   { 
+ 100   5                if (force_g >= (maxForce+2))  //间断的声音提醒用户力很接近预设的值了，
+ 101   5         {          //连续的声音提醒用户力有点大，要小一点
+ 102   6             
+ 103   6                    DisableTimer0IRQ(); //关定时器0中断
+ 104   6             OpenBuzzer(CONTINU); //连续声音
+ 105   6                       }
+ 106   5         else
+ 107   5         {
+ 108   6             EnableTimer0IRQ();
+ 109   6         }
+ 110   5                   }
+ 111   4            else
+ 112   4            {
+ 113   5                DisableTimer0IRQ();
+ 114   5        CloseBuzzer();
+ 115   5            }
+ 116   4      
+C51 COMPILER V9.00   MAIN                                                                  02/25/2016 19:50:16 PAGE 3   
+
+ 117   4            //按键扫描
+ 118   4            if ( (key=ReadKey()) == KEY_MODE )
+ 119   4            {
+ 120   5               ADC_PowerControl(DISABLE);
+ 121   5        flag++;
+ 122   5        break;
+ 123   5            }              
+ 124   4         }           //测量模式结束
+ 125   3              
+ 126   3              //设置模式        
+ 127   3       case SET_MODE:
+ 128   3        /*
+ 129   3         * 做一些设置模式下的初始化:
+ 130   3         * 初始化lcd, 读取eeprom的maxForce值，并显示它
+ 131   3         * 然后等待按键
+ 132   3         */
+ 133   3              InitLCD();
+ 134   3              WriteLCDStr(0x0b, "Set");
+ 135   3              EEPROM_read_n(ADDR_MAX_FORCE, string, 1);
+ 136   3              maxForce = 256 * string[1] + string[0];
+ 137   3              WriteLCDStr(0x45, "     g");
+ 138   3              WriteLCDStr(0x45, N16ToStr(maxForce, string)); 
+ 139   3           
+ 140   3             while (1)
+ 141   3             {
+ 142   4                 if ( (key=ReadKey()) == KEY_MODE )
+ 143   4                 {
+ 144   5                      flag++;
+ 145   5                      EEPROM_SectorErase(ADDR_MAX_FORCE);
+ 146   5                      string[0] = maxForce % 256;
+ 147   5                      string[1] = maxForce / 256;
+ 148   5                      EEPROM_write_n(ADDR_MAX_FORCE, string, 2);
+ 149   5                      break;
+ 150   5                 }
+ 151   4      
+ 152   4                 if ( key == KEY_10g )
+ 153   4                 {
+ 154   5                     if ( deltaForce == 1)
+ 155   5                     {
+ 156   6                          deltaForce = 10;
+ 157   6                     }  
+ 158   5                }
+ 159   4      
+ 160   4                if ( key == KEY_ADD )
+ 161   4                {
+ 162   5                      maxForce += deltaForce;
+ 163   5                      WriteLCDStr(0x45, N8ToStr(maxForce, string) );
+ 164   5                }
+ 165   4      
+ 166   4               if ( key == KEY_DEC )
+ 167   4               { 
+ 168   5                     if ( (maxForce -= deltaForce) <=0)    
+ 169   5                     {
+ 170   6                          maxForce = 0;
+ 171   6                     }
+ 172   5                     WriteLCDStr(0x45, N8ToStr(maxForce, string) );
+ 173   5               }
+ 174   4           }     //end of while
+ 175   3      
+ 176   3           default: break;
+ 177   3           } //switch在此结束
+ 178   2      
+C51 COMPILER V9.00   MAIN                                                                  02/25/2016 19:50:16 PAGE 4   
+
+ 179   2           if (flag>=2)
+ 180   2           {
+ 181   3              flag=0;
+ 182   3           }
+ 183   2      
+ 184   2         } //外层while在此结束
+ 185   1      
+ 186   1      }
+ 187          
+ 188          void ADC_InterruptService(void) interrupt 5
+ 189          {
+ 190   1         /* A/D 10-bit模式,ADC_RESL 低8位，
+ 191   1            ADC_RES 高2位   */
+ 192   1         NumOfVoltConvert = (ADC_RES * 256) + ADC_RESL; 
+ 193   1         ADC_CONTR &= (~ADC_FLAG);
+ 194   1         ADC_PowerControl(ENABLE);
+ 195   1      }
+ 196          
+ 197          
+ 198          void Timer0_InterruptService(void) interrupt 1 
+ 199          {
+ 200   1        OpenBuzzer(DISCONTINU);
+ 201   1        EnableTimer0IRQ();
+ 202   1      }   
+ 203          
+ 204          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    593    ----
+   CONSTANT SIZE    =     24    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     17      17
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
